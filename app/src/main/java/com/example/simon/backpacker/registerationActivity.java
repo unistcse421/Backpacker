@@ -2,11 +2,13 @@ package com.example.simon.backpacker;
 
 import android.app.ActionBar;
 import android.content.Intent;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Patterns;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.PopupWindow;
@@ -72,12 +74,21 @@ public class registerationActivity extends AppCompatActivity {
                 if(isValidateForm){
                     //send data to DB
 
-                    View popupView = getLayoutInflater().inflate(R.layout.activity_registeration,null);
-                    popup = new PopupWindow(popupView);
+                    View popupView = getLayoutInflater().inflate(R.layout.popup_register_success,null);
+                    popup = new PopupWindow(popupView, ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT);
 
-                    popup.showAtLocation(popupView, Gravity.CENTER,0,0);
+                    popup.showAtLocation(popupView,Gravity.NO_GRAVITY,0,0);
 
-                    moveHome();
+                    Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+
+                        @Override
+                        public void run() {
+                            popup.dismiss();
+                            moveHome();
+                        }
+
+                    }, 2000);
                 }
             }
         });
@@ -90,11 +101,11 @@ public class registerationActivity extends AppCompatActivity {
 
     private boolean isExistEmail(String email){
         //with DB connection
-        return true;
+        return false;
     }
 
     private void moveHome(){
-        popup.dismiss();
+
         Intent intent = new Intent(this,MainActivity.class);
         startActivity(intent);
     }
