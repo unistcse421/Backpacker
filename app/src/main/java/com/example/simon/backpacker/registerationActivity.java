@@ -1,6 +1,7 @@
 package com.example.simon.backpacker;
 
 import android.app.ActionBar;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
@@ -8,11 +9,15 @@ import android.os.Bundle;
 import android.util.Patterns;
 import android.view.Gravity;
 import android.view.View;
+import android.view.View.OnFocusChangeListener;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.regex.Pattern;
 
@@ -23,15 +28,28 @@ public class registerationActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_registeration);
+
+        final EditText emailView = (EditText)findViewById(R.id.email);
+        final EditText pwView = (EditText)findViewById(R.id.pw);
+        final EditText pwCheckView = (EditText)findViewById(R.id.pw_check);
+
+        LinearLayout background = (LinearLayout)findViewById(R.id.register_background);
+        background.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                InputMethodManager keyboard;
+                keyboard = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                keyboard.hideSoftInputFromWindow(emailView.getWindowToken(),0);
+                keyboard.hideSoftInputFromWindow(pwView.getWindowToken(),0);
+                keyboard.hideSoftInputFromWindow(pwCheckView.getWindowToken(),0);
+            }
+        });
+
         Button register = (Button)findViewById(R.id.register);
         register.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
                 boolean isValidateForm = true;
-
-                EditText emailView = (EditText)findViewById(R.id.email);
-                EditText pwView = (EditText)findViewById(R.id.pw);
-                EditText pwCheckView = (EditText)findViewById(R.id.pw_check);
 
                 String email = emailView.getText().toString();
                 String pw = pwView.getText().toString();
@@ -105,7 +123,6 @@ public class registerationActivity extends AppCompatActivity {
     }
 
     private void moveHome(){
-
         Intent intent = new Intent(this,MainActivity.class);
         startActivity(intent);
     }
