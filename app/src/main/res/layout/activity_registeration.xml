@@ -119,12 +119,12 @@
     </GridLayout>
 
     <Button
-        android:id="@+id/register"
+        android:id="@+id/register_join"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="75dp"
         android:layout_marginLeft="250dp"
-        android:text="Register"
+        android:text="Join"
         android:textColor="#ffffff"
         android:background="@drawable/button_transparent"
         />

@@ -45,7 +45,7 @@ public class registerationActivity extends AppCompatActivity {
             }
         });
 
-        Button register = (Button)findViewById(R.id.register);
+        Button register = (Button)findViewById(R.id.register_join);
         register.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -60,6 +60,7 @@ public class registerationActivity extends AppCompatActivity {
                     TextView emailValidation = (TextView) findViewById(R.id.email_validation);
                     emailValidation.setText("Email is Invalidate");
                     isValidateForm = false;
+                    return;
                 }else if(isExistEmail(email)){                              //check email duplication
                     TextView emailValidation = (TextView) findViewById(R.id.email_validation);
                     emailValidation.setText("Email already Exist");
@@ -74,6 +75,7 @@ public class registerationActivity extends AppCompatActivity {
                     TextView pwValidation = (TextView) findViewById(R.id.pw_validation);
                     pwValidation.setText("PW should be 8~20 characters");
                     isValidateForm = false;
+                    return;
                 }else{
                     TextView pwValidation = (TextView) findViewById(R.id.pw_validation);
                     pwValidation.setText("");
