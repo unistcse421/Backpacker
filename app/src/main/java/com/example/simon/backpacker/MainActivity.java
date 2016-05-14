@@ -1,6 +1,7 @@
 package com.example.simon.backpacker;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.support.v7.app.ActionBar;
@@ -9,9 +10,12 @@ import android.os.Bundle;
 import android.util.Patterns;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.regex.Pattern;
 
@@ -27,13 +31,24 @@ public class MainActivity extends AppCompatActivity {
         Button login = (Button)findViewById(R.id.login);
         Button join = (Button)findViewById(R.id.login_join);
 
+        final EditText emailView = (EditText)findViewById(R.id.login_email);
+        final EditText pwView = (EditText)findViewById(R.id.login_pw);
+
+        LinearLayout background = (LinearLayout)findViewById(R.id.login_background);
+        background.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                InputMethodManager keyboard;
+                keyboard = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                keyboard.hideSoftInputFromWindow(emailView.getWindowToken(),0);
+                keyboard.hideSoftInputFromWindow(pwView.getWindowToken(),0);
+            }
+        });
+
         login.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
                 boolean isLoginSuccess = false;
-
-                EditText emailView = (EditText)findViewById(R.id.email);
-                EditText pwView = (EditText)findViewById(R.id.pw);
 
                 String email = emailView.getText().toString();
                 String pw = pwView.getText().toString();
@@ -59,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
                     isLoginSuccess = true;
                 }
 
-                if(isLoginSuccess){
+                if(!isLoginSuccess){
                     moveMap();
                 }
             }

@@ -127,5 +127,6 @@ public class registerationActivity extends AppCompatActivity {
     private void moveHome(){
         Intent intent = new Intent(this,MainActivity.class);
         startActivity(intent);
+        finish();
     }
 }
