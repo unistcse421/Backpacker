@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.net.http.RequestQueue;
 import android.os.AsyncTask;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
@@ -57,7 +56,7 @@ import java.util.ArrayList;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
-    private String encoded_string;
+    private static String encoded_string;
     private static final String url = "10.36.120.47/android.php";
 
     @Override
@@ -131,22 +130,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         byte[] array = stream.toByteArray();
         encoded_string = Base64.encodeToString(array,0);
 
+
+
         //server connection
-        new connection().execute();
+        new connection().execute(encoded_string);
     }
 
-    class connection extends AsyncTask<String, Integer, String>{
+    private class connection extends AsyncTask<String, Integer, String>{
 
         @Override
         protected String doInBackground(String... params) {
             ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-            nameValuePairs.add(new BasicNameValuePair("image",encoded_string));
+            nameValuePairs.add(new BasicNameValuePair("encoded_string",encoded_string));
+            nameValuePairs.add(new BasicNameValuePair("image_name","simon.jpg"));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
+            HttpPost httpPost = new HttpPost("http://10.36.120.33/test.php");
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs,HTTP.UTF_8));
                 HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+                String temp = reader.readLine();
+                stream.close();
+
+                if(temp == encoded_string)
+                    Toast.makeText(getApplicationContext(),"success",Toast.LENGTH_SHORT).show();
+
+
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             } catch (ClientProtocolException e) {
