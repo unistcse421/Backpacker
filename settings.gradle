@@ -1,1 +1,5 @@
+<<<<<<< HEAD
+include ':backpacker'
+=======
 include ':app'
+>>>>>>> master
