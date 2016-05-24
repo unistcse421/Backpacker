@@ -2,6 +2,7 @@ package com.example.simon.backpacker;
 
 import android.Manifest;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -109,7 +110,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         // Add a marker in Sydney and move the camera
         //LatLng sydney = new LatLng(-34, 151);
         //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        Gps gps = new Gps();
+        Gps gps = new Gps(this);
         LatLng cur = new LatLng(gps.getLatitude(),gps.getLongitude());
         mMap.addMarker(new MarkerOptions().position(cur).title("current"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(cur));
@@ -142,7 +143,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         byte[] array = stream.toByteArray();
         encoded_string = Base64.encodeToString(array, 0);
 
-
         //server connection
         new connection().execute(encoded_string);
     }
@@ -154,7 +154,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             /*
             TO-DO:image name and Gps info
              */
-            Gps gps = new Gps();
+            Gps gps = new Gps(MapsActivity.this);
 
             ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
             nameValuePairs.add(new BasicNameValuePair("encoded_string", encoded_string));
@@ -202,12 +202,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         protected LocationManager locationManager;
         Location location;
 
-        protected Gps() {
+        protected Gps(Context context) {
             if ( Build.VERSION.SDK_INT >= 23 &&
                     ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
                     ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return  ;
             }
+
+            locationManager = (LocationManager)context.getSystemService(LOCATION_SERVICE);
 
             isGPSEnabled = locationManager
                     .isProviderEnabled(LocationManager.GPS_PROVIDER);
