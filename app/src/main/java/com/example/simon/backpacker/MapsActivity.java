@@ -1,13 +1,24 @@
 package com.example.simon.backpacker;
 
+import android.Manifest;
+import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.os.IBinder;
 import android.provider.MediaStore;
+import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.TextViewCompat;
 import android.util.Base64;
 import android.util.Log;
@@ -66,14 +77,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 //        String userId = getIntent().getExtras().getString("USERID");
 
-        ImageButton camera = (ImageButton)findViewById(R.id.camera);
+        ImageButton camera = (ImageButton) findViewById(R.id.camera);
         camera.setOnClickListener(new ImageButton.OnClickListener() {
             @Override
             public void onClick(View v) {
                 dispatchTakePictureIntent();
             }
         });
-
 
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -97,9 +107,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
 
         // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+        //LatLng sydney = new LatLng(-34, 151);
+        //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
+        Gps gps = new Gps();
+        LatLng cur = new LatLng(gps.getLatitude(),gps.getLongitude());
+        mMap.addMarker(new MarkerOptions().position(cur).title("current"));
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(cur));
     }
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -120,35 +133,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             Bundle extras = data.getExtras();
             photo = (Bitmap) extras.get("data");
-        }
-        else
+        } else
             return;
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        photo.compress(Bitmap.CompressFormat.JPEG,100,stream);
+        photo.compress(Bitmap.CompressFormat.JPEG, 100, stream);
 
         byte[] array = stream.toByteArray();
-        encoded_string = Base64.encodeToString(array,0);
-
+        encoded_string = Base64.encodeToString(array, 0);
 
 
         //server connection
         new connection().execute(encoded_string);
     }
 
-    private class connection extends AsyncTask<String, Integer, String>{
+    private class connection extends AsyncTask<String, Integer, String> {
 
         @Override
         protected String doInBackground(String... params) {
+            /*
+            TO-DO:image name and Gps info
+             */
+            Gps gps = new Gps();
+
             ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-            nameValuePairs.add(new BasicNameValuePair("encoded_string",encoded_string));
-            nameValuePairs.add(new BasicNameValuePair("image_name","simon.jpg"));
+            nameValuePairs.add(new BasicNameValuePair("encoded_string", encoded_string));
+            nameValuePairs.add(new BasicNameValuePair("image_name", "simon.jpg"));
+            nameValuePairs.add(new BasicNameValuePair("latitude", Double.toString(gps.getLatitude())));
+            nameValuePairs.add(new BasicNameValuePair("longitude", Double.toString(gps.getLongitude())));
 
             HttpClient httpClient = new DefaultHttpClient();
             HttpPost httpPost = new HttpPost("http://10.36.120.33/test.php");
             try {
-                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs,HTTP.UTF_8));
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
                 HttpResponse response = httpClient.execute(httpPost);
+                /*
                 HttpEntity entityResponse = response.getEntity();
                 InputStream stream = entityResponse.getContent();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
@@ -158,7 +177,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 if(temp == encoded_string)
                     Toast.makeText(getApplicationContext(),"success",Toast.LENGTH_SHORT).show();
-
+                    */
 
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
@@ -167,7 +186,101 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+            Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
             return null;
+        }
+    }
+
+    private class Gps implements LocationListener {
+
+        double latitude;
+        double longitude;
+
+        boolean isGPSEnabled = false, isNetworkEnabled = false, isGetLocation = false;
+
+        protected LocationManager locationManager;
+        Location location;
+
+        protected Gps() {
+            if ( Build.VERSION.SDK_INT >= 23 &&
+                    ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return  ;
+            }
+
+            isGPSEnabled = locationManager
+                    .isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+            isNetworkEnabled = locationManager
+                    .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+            if (!isGPSEnabled && !isNetworkEnabled) {
+
+            } else {
+                this.isGetLocation = true;
+
+                if (isNetworkEnabled) {
+                    locationManager.requestLocationUpdates(
+                            LocationManager.NETWORK_PROVIDER,
+                            60000,
+                            10, this);
+
+                    if (locationManager != null) {
+                        location = locationManager
+                                .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                        if (location != null) {
+                            latitude = location.getLatitude();
+                            longitude = location.getLongitude();
+                        }
+                    }
+                }
+
+                if (isGPSEnabled) {
+                    if (location == null) {
+                        locationManager.requestLocationUpdates(
+                                LocationManager.GPS_PROVIDER,
+                                60000,
+                                10, this);
+                        if (locationManager != null) {
+                            location = locationManager
+                                    .getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                            if (location != null) {
+                                latitude = location.getLatitude();
+                                longitude = location.getLongitude();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        protected double getLatitude(){
+            return latitude;
+        }
+
+        protected double getLongitude(){
+            return  longitude;
+        }
+
+        @Override
+        public void onLocationChanged(Location location) {
+
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+
         }
     }
 }
