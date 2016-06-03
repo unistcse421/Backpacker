@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity" >
+    tools:context=".MainActivity"
+    android:id="@+id/maplayout">
 
 
     <fragment xmlns:android="http://schemas.android.com/apk/res/android"
@@ -21,7 +22,23 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@mipmap/camera_icon"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true" />
+
+    <GridView
+        android:id="@+id/gridView"
+        android:layout_width="match_parent"
+        android:layout_height="270dp"
         android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        />
+        android:layout_alignParentStart="true"
+        android:visibility="gone"
+        android:numColumns="3"
+        android:horizontalSpacing="10dp"
+        android:verticalSpacing="10dp"
+        android:background="#ffffff"
+        >
+
+
+    </GridView>
+
 </RelativeLayout>

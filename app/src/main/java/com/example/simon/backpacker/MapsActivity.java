@@ -1,68 +1,47 @@
 package com.example.simon.backpacker;
 
-import android.Manifest;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.IBinder;
 import android.provider.MediaStore;
-import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.widget.TextViewCompat;
 import android.util.Base64;
-import android.util.Log;
 import android.view.View;
+import android.widget.GridView;
 import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
 import org.apache.http.protocol.HTTP;
-import org.apache.http.util.EntityUtils;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -70,6 +49,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private static String encoded_string;
     private static final String url = "10.36.120.47/android.php";
+    protected ArrayList<PicInfo> picList;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +65,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 dispatchTakePictureIntent();
             }
         });
+
+        //TO-DO : get pic from server and save at picList
+        picList = new ArrayList<PicInfo>();
+        Bitmap testbit = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
+        double la = -34, lo = 151;
+        PicInfo test = new PicInfo(testbit,la,lo);
+        picList.add(test);
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 8;
+        Bitmap t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test1,options);
+        double la1 = -34.1, lo1=151.1;
+        PicInfo t1 = new PicInfo(t11,la1,lo1);
+        picList.add(t1);
+        t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test2,options);
+        la1 = -34.11;
+        lo1=151.11;
+        t1 = new PicInfo(t11,la1,lo1);
+        picList.add(t1);
+
 
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -114,6 +113,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng cur = new LatLng(gps.getLatitude(),gps.getLongitude());
         mMap.addMarker(new MarkerOptions().position(cur).title("current"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(cur));
+
+
+        //TO-DO : marker pic(imagebutton) by gps info from picList
+        for(int i=0; i<picList.size(); i++){
+            Bitmap tempBit = picList.get(i).getBitmap();
+            double tempLatitude = picList.get(i).getLatitude();
+            double tempLongtitude = picList.get(i).getLongtitude();
+
+            googleMap.addMarker(new MarkerOptions().position(new LatLng(tempLatitude,tempLongtitude)).icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+            googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                @Override
+                public boolean onMarkerClick(Marker marker) {
+                    GridView gv = (GridView)findViewById(R.id.gridView);
+                    ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
+
+                    gv.setAdapter(imagegridadapter);
+
+                    gv.setVisibility(View.VISIBLE);
+
+                    return false;
+                }
+            });
+        }
+
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                GridView gv = (GridView)findViewById(R.id.gridView);
+                gv.setVisibility(View.GONE);
+            }
+        });
+
+        //TO-DO : imagebutton onclicklistener -> make fragment which show picture list at gridview
+        //TO-DO : map onclicklistener -> hide fragment(gridview)
+        //TO-DO : gridview onclicklistener -> only imageview with black background
     }
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -284,5 +318,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         public void onProviderDisabled(String provider) {
 
         }
+    }
+
+    public class PicInfo {
+        private Bitmap bitmap;
+        private double latitude;
+        private double longitude;
+
+        PicInfo(Bitmap _bitmap, double _latitude, double _longtitude){
+            bitmap = _bitmap;
+            latitude = _latitude;
+            longitude = _longtitude;
+        }
+
+        Bitmap getBitmap(){
+            return bitmap;
+        }
+
+        double getLatitude(){
+            return latitude;
+        }
+
+        double getLongtitude() { return longitude; }
     }
 }
