@@ -5,9 +5,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.ExifInterface;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.provider.MediaStore;
@@ -43,20 +45,23 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Map;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private static String encoded_string;
-    private static final String url = "10.36.120.47/android.php";
     protected ArrayList<PicInfo> picList;
+    private int userId;
+    private int photoTotalNum;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-//        String userId = getIntent().getExtras().getString("USERID");
+        userId = getIntent().getIntExtra("USERID",-1);
+        photoTotalNum = getIntent().getIntExtra("PHOTONUM",0);
 
         ImageButton camera = (ImageButton) findViewById(R.id.camera);
         camera.setOnClickListener(new ImageButton.OnClickListener() {
@@ -67,24 +72,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
 
         //TO-DO : get pic from server and save at picList
-        picList = new ArrayList<PicInfo>();
-        Bitmap testbit = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-        double la = -34, lo = 151;
-        PicInfo test = new PicInfo(testbit,la,lo);
-        picList.add(test);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = 8;
-        Bitmap t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test1,options);
-        double la1 = -34.1, lo1=151.1;
-        PicInfo t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
-        t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test2,options);
-        la1 = -34.11;
-        lo1=151.11;
-        t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
-
-
+        getPhoto();
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -116,13 +104,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
         //TO-DO : marker pic(imagebutton) by gps info from picList
+        setMarker();
+
+        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                GridView gv = (GridView)findViewById(R.id.gridView);
+                gv.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    private void setMarker(){
         for(int i=0; i<picList.size(); i++){
             Bitmap tempBit = picList.get(i).getBitmap();
             double tempLatitude = picList.get(i).getLatitude();
             double tempLongtitude = picList.get(i).getLongtitude();
 
-            googleMap.addMarker(new MarkerOptions().position(new LatLng(tempLatitude,tempLongtitude)).icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
-            googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            mMap.addMarker(new MarkerOptions().position(new LatLng(tempLatitude,tempLongtitude)).icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+            mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                 @Override
                 public boolean onMarkerClick(Marker marker) {
                     GridView gv = (GridView)findViewById(R.id.gridView);
@@ -136,18 +136,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             });
         }
+    }
 
-        mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-            @Override
-            public void onMapClick(LatLng latLng) {
-                GridView gv = (GridView)findViewById(R.id.gridView);
-                gv.setVisibility(View.GONE);
-            }
-        });
-
-        //TO-DO : imagebutton onclicklistener -> make fragment which show picture list at gridview
-        //TO-DO : map onclicklistener -> hide fragment(gridview)
-        //TO-DO : gridview onclicklistener -> only imageview with black background
+    private void getPhoto(){
+        picList = new ArrayList<PicInfo>();
+        Bitmap testbit = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
+        double la = -34, lo = 151;
+        PicInfo test = new PicInfo(testbit,la,lo);
+        picList.add(test);
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = 8;
+        Bitmap t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test1,options);
+        double la1 = -34.1, lo1=151.1;
+        PicInfo t1 = new PicInfo(t11,la1,lo1);
+        picList.add(t1);
+        t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test2,options);
+        la1 = -34.11;
+        lo1=151.11;
+        t1 = new PicInfo(t11,la1,lo1);
+        picList.add(t1);
     }
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -168,6 +175,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             Bundle extras = data.getExtras();
             photo = (Bitmap) extras.get("data");
+
+            if(photo.getHeight() > photo.getWidth()){
+
+            }
+            else{
+
+            }
         } else
             return;
 
@@ -178,7 +192,45 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         encoded_string = Base64.encodeToString(array, 0);
 
         //server connection
-        new connection().execute(encoded_string);
+        //new connection().execute(encoded_string);
+        Gps gps = new Gps(MapsActivity.this);
+
+        mMap.addMarker(new MarkerOptions()
+                .position(new LatLng(gps.getLatitude(),gps.getLongitude()))
+                .icon(BitmapDescriptorFactory.fromBitmap(photo)));
+
+        int viewHeight = 100;
+        float width = photo.getWidth();
+        float height = photo.getHeight();
+
+        if(height > viewHeight)
+        {
+            float percente = (float)(height / 100);
+            float scale = (float)(viewHeight / percente);
+            width *= (scale / 100);
+            height *= (scale / 100);
+        }
+
+        Bitmap sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
+
+        PicInfo t1 = new PicInfo(sizingBmp,gps.getLatitude(),gps.getLongitude());
+        picList.add(t1);
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                GridView gv = (GridView)findViewById(R.id.gridView);
+                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
+
+                gv.setAdapter(imagegridadapter);
+
+                gv.setVisibility(View.VISIBLE);
+
+                return false;
+            }
+        });
+
+
     }
 
     private class connection extends AsyncTask<String, Integer, String> {
@@ -186,32 +238,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         @Override
         protected String doInBackground(String... params) {
             /*
-            TO-DO:image name and Gps info
+            TO-DO:image name
              */
+            String name = Integer.toString(userId) + "_" + Integer.toString(++photoTotalNum);
+
             Gps gps = new Gps(MapsActivity.this);
 
             ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
             nameValuePairs.add(new BasicNameValuePair("encoded_string", encoded_string));
-            nameValuePairs.add(new BasicNameValuePair("image_name", "simon.jpg"));
+            nameValuePairs.add(new BasicNameValuePair("image_name", name + ".jpg"));
             nameValuePairs.add(new BasicNameValuePair("latitude", Double.toString(gps.getLatitude())));
             nameValuePairs.add(new BasicNameValuePair("longitude", Double.toString(gps.getLongitude())));
+            nameValuePairs.add(new BasicNameValuePair("user_num", Integer.toString(userId)));
 
             HttpClient httpClient = new DefaultHttpClient();
             HttpPost httpPost = new HttpPost("http://10.36.120.33/test.php");
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
-                HttpResponse response = httpClient.execute(httpPost);
-                /*
-                HttpEntity entityResponse = response.getEntity();
-                InputStream stream = entityResponse.getContent();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
-
-                String temp = reader.readLine();
-                stream.close();
-
-                if(temp == encoded_string)
-                    Toast.makeText(getApplicationContext(),"success",Toast.LENGTH_SHORT).show();
-                    */
+                httpClient.execute(httpPost);
 
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
@@ -341,4 +385,5 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         double getLongtitude() { return longitude; }
     }
+
 }

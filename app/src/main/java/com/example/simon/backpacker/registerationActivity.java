@@ -37,6 +37,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
 public class registerationActivity extends AppCompatActivity {
@@ -140,33 +141,29 @@ public class registerationActivity extends AppCompatActivity {
 
     private boolean isExistEmail(String email){
         //with DB connection
-        ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-        nameValuePairs.add(new BasicNameValuePair("email",email));
 
-        HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
+        EmailConn task = new EmailConn();
+        String result = null;
         try {
-            httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
-            HttpResponse response = httpClient.execute(httpPost);
-            HttpEntity entityResponse = response.getEntity();
-            InputStream stream = entityResponse.getContent();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
-
-            String temp = reader.readLine();
-            stream.close();
-
-            if(temp == null)
-                return false;
-            else
-                return true;
-        } catch (UnsupportedEncodingException e) {
+            result = task.execute(email).get();
+        } catch (InterruptedException e) {
             e.printStackTrace();
-        } catch (ClientProtocolException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (ExecutionException e) {
             e.printStackTrace();
         }
-        return false;
+
+        if ( task.getStatus() == AsyncTask.Status.RUNNING ) {
+            try {
+                Thread.currentThread().sleep(300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if(result.equals("0"))
+            return false;
+        else
+            return true;
     }
 
     private void moveHome(){
@@ -184,7 +181,7 @@ public class registerationActivity extends AppCompatActivity {
             nameValuePairs.add(new BasicNameValuePair("pw",params[1]));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join.php");
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
                 HttpResponse response = httpClient.execute(httpPost);
@@ -198,4 +195,39 @@ public class registerationActivity extends AppCompatActivity {
             return null;
         }
     }
+
+    private class EmailConn extends AsyncTask<String, Void, String> {
+
+
+        @Override
+        protected String doInBackground(String... params) {
+            ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("email",params[0]));
+
+            HttpClient httpClient = new DefaultHttpClient();
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join.php");
+            String temp = null;
+            try {
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
+                HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+                temp = reader.readLine();
+                stream.close();
+
+
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return temp;
+        }
+    }
+
+
 }

@@ -8,7 +8,10 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
+import java.util.ArrayList;
+
 public class ShowPicActivity extends AppCompatActivity {
+    private ArrayList<MapsActivity.PicInfo> picInfo = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -16,23 +19,10 @@ public class ShowPicActivity extends AppCompatActivity {
         setContentView(R.layout.activity_show_pic);
 
         int photoNum = getIntent().getExtras().getInt("id");
+        picInfo = (ArrayList< MapsActivity.PicInfo>)getIntent().getExtras().get("piclist");
 
         Bitmap photo;
-        //get photo from url
-        switch (photoNum){
-            case 0:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-                break;
-            case 1:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.test1);
-                break;
-            case 2:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.test2);
-                break;
-            default:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-        }
-
+        photo = picInfo.get(photoNum).getBitmap();
 
         ImageView imageView = (ImageView)findViewById(R.id.showPic);
         imageView.setImageBitmap(photo);

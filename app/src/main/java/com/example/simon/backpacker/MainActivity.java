@@ -35,11 +35,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
     private int userId = -1;        //-1 meaning that user not exist in DB
+    private int photoNum = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
     private void moveMap(){
         Intent intent = new Intent(this,MapsActivity.class);
         intent.putExtra("USERID",userId);
+        intent.putExtra("PHOTONUM",photoNum);
         startActivity(intent);
     }
 
@@ -145,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private  boolean isUser(String email, String pw){
+        getUserId(email,pw);
         if(userId == -1)
             return false;
         else
@@ -154,32 +158,68 @@ public class MainActivity extends AppCompatActivity {
     private void getUserId(String email, String pw){
         //with DB connection
         //if exist, save it at userId(global var)
-
-        ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-        nameValuePairs.add(new BasicNameValuePair("email",email));
-        nameValuePairs.add(new BasicNameValuePair("pw",pw));
-
-        HttpClient httpClient = new DefaultHttpClient();
-        HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
+        GetIdNet task = new GetIdNet();
+        String[] result = null;
         try {
-            httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
-            HttpResponse response = httpClient.execute(httpPost);
-            HttpEntity entityResponse = response.getEntity();
-            InputStream stream = entityResponse.getContent();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+            result = task.execute(email,pw).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
 
-            String temp = reader.readLine();
+        if ( task.getStatus() == AsyncTask.Status.RUNNING ) {
             try {
-                userId = Integer.parseInt(temp);
-            }catch (Exception e){}
+                Thread.currentThread().sleep(300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
-            stream.close();
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        } catch (ClientProtocolException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+        if(result[0].equals("-1")) {
+            userId = -1;
+            return;
+        }
+        userId = Integer.parseInt(result[0]);
+        photoNum = Integer.parseInt(result[1]);
+
+
+    }
+
+    private class GetIdNet extends AsyncTask<String,Void,String[]>{
+
+        @Override
+        protected String[] doInBackground(String... params) {
+            ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("email",params[0]));
+            nameValuePairs.add(new BasicNameValuePair("pw",params[1]));
+
+            HttpClient httpClient = new DefaultHttpClient();
+            HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
+            String[] temp = new String[2];
+            try {
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
+                HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+
+                for(int i=0;i<2;i++)
+                    temp[i] = reader.readLine();
+                try {
+                    userId = Integer.parseInt(temp[0]);
+                }catch (Exception e){}
+
+                stream.close();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return temp;
         }
     }
 

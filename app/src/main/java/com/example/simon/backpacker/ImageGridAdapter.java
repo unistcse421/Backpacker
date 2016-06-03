@@ -57,6 +57,7 @@ public class ImageGridAdapter extends BaseAdapter {
                     Intent intent = new Intent(context,ShowPicActivity.class);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     intent.putExtra("id",position);
+                    intent.putExtra("piclist",picinfos);
                     context.startActivity(intent);
                 }
             };
