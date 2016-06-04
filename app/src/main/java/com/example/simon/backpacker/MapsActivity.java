@@ -10,8 +10,10 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.ExifInterface;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -22,6 +24,7 @@ import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
+import com.android.internal.http.multipart.MultipartEntity;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -31,6 +34,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
@@ -41,19 +45,25 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.protocol.HTTP;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private static String encoded_string;
-    protected ArrayList<PicInfo> picList;
+    public ArrayList<PicInfo> picList;
     private int userId;
     private int photoTotalNum;
+    private Uri imageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -161,57 +171,94 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     //call camera app
     private void dispatchTakePictureIntent() {
+
+        File photo = new File(Environment.getExternalStorageDirectory(),
+                ".camera.jpg");
+        imageUri = Uri.fromFile(photo);
+
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+        startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+
+        /*
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
         }
-    }
+ */   }
 
     //get photo to bitmap file and upload
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Bitmap photo;
-
+        Bitmap photo=null;
+        int degree;
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            Bundle extras = data.getExtras();
-            photo = (Bitmap) extras.get("data");
+//            Bundle extras = data.getExtras();
+//            photo = (Bitmap) extras.get("data");
 
-            if(photo.getHeight() > photo.getWidth()){
+            String imagePath = imageUri.getPath();
+            Bitmap image = BitmapFactory.decodeFile(imagePath);
 
-            }
-            else{
+            degree = GetExifOrientation(imagePath);
+            photo = GetRotatedBitmap(image,degree);
 
-            }
         } else
             return;
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        photo.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+        photo.compress(Bitmap.CompressFormat.JPEG, 70, stream);
 
         byte[] array = stream.toByteArray();
         encoded_string = Base64.encodeToString(array, 0);
 
-        //server connection
-        //new connection().execute(encoded_string);
         Gps gps = new Gps(MapsActivity.this);
 
+        //server connection
+        String te = null;
+        try {
+            te = new connection().execute(String.valueOf(gps.getLatitude()),String.valueOf(gps.getLongitude())).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(),te, Toast.LENGTH_SHORT).show();
+        encoded_string = null;
+
+
+        Bitmap sizingBmp=null;
+        if((degree == 0) || (degree ==180)) {
+            int viewHeight = 150;
+            float width = photo.getWidth();
+            float height = photo.getHeight();
+
+            if (height > viewHeight) {
+                float percente = (float) (height / 100);
+                float scale = (float) (viewHeight / percente);
+                width *= (scale / 100);
+                height *= (scale / 100);
+            }
+
+            sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
+        }
+        else{
+            int viewWidth = 150;
+            float width = photo.getWidth();
+            float height = photo.getHeight();
+
+            if (width > viewWidth) {
+                float percente = (float) (width / 100);
+                float scale = (float) (viewWidth / percente);
+                width *= (scale / 100);
+                height *= (scale / 100);
+            }
+
+            sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
+        }
         mMap.addMarker(new MarkerOptions()
                 .position(new LatLng(gps.getLatitude(),gps.getLongitude()))
-                .icon(BitmapDescriptorFactory.fromBitmap(photo)));
-
-        int viewHeight = 100;
-        float width = photo.getWidth();
-        float height = photo.getHeight();
-
-        if(height > viewHeight)
-        {
-            float percente = (float)(height / 100);
-            float scale = (float)(viewHeight / percente);
-            width *= (scale / 100);
-            height *= (scale / 100);
-        }
-
-        Bitmap sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
+                .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
 
         PicInfo t1 = new PicInfo(sizingBmp,gps.getLatitude(),gps.getLongitude());
         picList.add(t1);
@@ -237,25 +284,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         protected String doInBackground(String... params) {
-            /*
-            TO-DO:image name
-             */
-            String name = Integer.toString(userId) + "_" + Integer.toString(++photoTotalNum);
-
-            Gps gps = new Gps(MapsActivity.this);
+            String temp = null;
+            String name = Integer.toString(userId) + "_" + Integer.toString(++photoTotalNum) + ".jpg";
 
             ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
             nameValuePairs.add(new BasicNameValuePair("encoded_string", encoded_string));
-            nameValuePairs.add(new BasicNameValuePair("image_name", name + ".jpg"));
-            nameValuePairs.add(new BasicNameValuePair("latitude", Double.toString(gps.getLatitude())));
-            nameValuePairs.add(new BasicNameValuePair("longitude", Double.toString(gps.getLongitude())));
+            nameValuePairs.add(new BasicNameValuePair("image_name", name));
+            nameValuePairs.add(new BasicNameValuePair("latitude", params[0]));
+            nameValuePairs.add(new BasicNameValuePair("longitude",params[1]));
             nameValuePairs.add(new BasicNameValuePair("user_num", Integer.toString(userId)));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://10.36.120.33/test.php");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/save_img.php");
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
-                httpClient.execute(httpPost);
+                HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+
+                temp = reader.readLine();
+
+                stream.close();
 
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
@@ -265,8 +316,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 e.printStackTrace();
             }
 
-            Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
-            return null;
+
+            return temp;
         }
     }
 
@@ -384,6 +435,69 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         double getLongtitude() { return longitude; }
+    }
+
+    public synchronized static int GetExifOrientation(String filepath)
+    {
+        int degree = 0;
+        ExifInterface exif = null;
+
+        try
+        {
+            exif = new ExifInterface(filepath);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
+        if (exif != null)
+        {
+            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1);
+
+            if (orientation != -1)
+            {
+                // We only recognize a subset of orientation tag values.
+                switch(orientation)
+                {
+                    case ExifInterface.ORIENTATION_ROTATE_90:
+                        degree = 90;
+                        break;
+
+                    case ExifInterface.ORIENTATION_ROTATE_180:
+                        degree = 180;
+                        break;
+
+                    case ExifInterface.ORIENTATION_ROTATE_270:
+                        degree = 270;
+                        break;
+                }
+            }
+        }
+        return degree;
+    }
+
+    public synchronized static Bitmap GetRotatedBitmap(Bitmap bitmap, int degrees)
+    {
+        if ( degrees != 0 && bitmap != null )
+        {
+            Matrix m = new Matrix();
+            m.setRotate(degrees, (float) bitmap.getWidth() / 2, (float) bitmap.getHeight() / 2 );
+            try
+            {
+                Bitmap b2 = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
+                if (bitmap != b2)
+                {
+                    bitmap.recycle();
+                    bitmap = b2;
+                }
+            }
+            catch (OutOfMemoryError ex)
+            {
+                // We have no memory to rotate. Return the original bitmap.
+            }
+        }
+        return bitmap;
     }
 
 }

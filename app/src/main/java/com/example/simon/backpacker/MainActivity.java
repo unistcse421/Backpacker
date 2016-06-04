@@ -94,7 +94,7 @@ public class MainActivity extends AppCompatActivity {
                     isLoginSuccess = true;
                 }
 
-                if(!isLoginSuccess){
+                if(isLoginSuccess){
                     moveMap();
                 }
             }
@@ -159,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
         //with DB connection
         //if exist, save it at userId(global var)
         GetIdNet task = new GetIdNet();
+
         String[] result = null;
         try {
             result = task.execute(email,pw).get();
@@ -180,10 +181,9 @@ public class MainActivity extends AppCompatActivity {
             userId = -1;
             return;
         }
-        userId = Integer.parseInt(result[0]);
-        photoNum = Integer.parseInt(result[1]);
 
-
+        userId = Integer.parseInt(result[1]);
+        photoNum = Integer.parseInt(result[2]);
     }
 
     private class GetIdNet extends AsyncTask<String,Void,String[]>{
@@ -195,8 +195,8 @@ public class MainActivity extends AppCompatActivity {
             nameValuePairs.add(new BasicNameValuePair("pw",params[1]));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://10.36.120.47/android.php");
-            String[] temp = new String[2];
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/login.php");
+            String[] temp = new String[4];
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
                 HttpResponse response = httpClient.execute(httpPost);
@@ -205,11 +205,8 @@ public class MainActivity extends AppCompatActivity {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
 
 
-                for(int i=0;i<2;i++)
+                for(int i=0;i<4;i++)
                     temp[i] = reader.readLine();
-                try {
-                    userId = Integer.parseInt(temp[0]);
-                }catch (Exception e){}
 
                 stream.close();
             } catch (UnsupportedEncodingException e) {
