@@ -33,6 +33,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.vision.CameraSource;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -57,6 +58,8 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -66,11 +69,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int userId;
     private int photoTotalNum;
     private Uri imageUri;
+    private Lock lock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        picList = new ArrayList<PicInfo>();
+        lock = new ReentrantLock();
 
         userId = getIntent().getIntExtra("USERID",-1);
         photoTotalNum = getIntent().getIntExtra("PHOTONUM",0);
@@ -84,7 +91,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         });
 
         //TO-DO : get pic from server and save at picList
-        getPhoto();
+
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -116,6 +123,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
 
         //TO-DO : marker pic(imagebutton) by gps info from picList
+        getPhoto();
+
         setMarker();
 
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
@@ -133,7 +142,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             double tempLatitude = picList.get(i).getLatitude();
             double tempLongtitude = picList.get(i).getLongtitude();
 
-            mMap.addMarker(new MarkerOptions().position(new LatLng(tempLatitude,tempLongtitude)).icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+            mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(tempLatitude,tempLongtitude))
+                    .icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
             mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                 @Override
                 public boolean onMarkerClick(Marker marker) {
@@ -152,19 +163,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void getPhoto(){
         for(int i=0; i<photoTotalNum; i++){
+
             //make url
-            String url = "http://uni07.unist.ac.kr/~cs20111412/imgs/" + String.valueOf(userId) + "_" + String.valueOf(i) + ".jpg";
+            String url = "http://uni07.unist.ac.kr/~cs20111412/imgs/" + String.valueOf(userId) + "_" + String.valueOf(i+1) + ".jpg";
 
             Bitmap photo = null;
             String[] gps = null;
+
             try{
-                photo = new getPhoto().execute(url).get();
-                gps = new getGps().execute(userId,i).get();
+                getPhoto task = new getPhoto();
+                photo = task.execute(url).get();
+
+
+                getGps task2 = new getGps();
+                gps = task2.execute(userId,i+1).get();
+
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (ExecutionException e) {
                 e.printStackTrace();
             }
+
+            if(photo==null)
+                Toast.makeText(getApplicationContext(),"null",Toast.LENGTH_SHORT).show();
 
             PicInfo picInfo = new PicInfo(photo,Double.parseDouble(gps[0]),Double.parseDouble(gps[1]));
             picList.add(picInfo);
@@ -228,7 +249,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             e.printStackTrace();
         }
         Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
-        Toast.makeText(getApplicationContext(),te, Toast.LENGTH_SHORT).show();
+
         encoded_string = null;
 
 
@@ -238,12 +259,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             float width = photo.getWidth();
             float height = photo.getHeight();
 
-            if (height > viewHeight) {
                 float percente = (float) (height / 100);
                 float scale = (float) (viewHeight / percente);
                 width *= (scale / 100);
                 height *= (scale / 100);
-            }
+
 
             sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
         }
@@ -252,12 +272,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             float width = photo.getWidth();
             float height = photo.getHeight();
 
-            if (width > viewWidth) {
+
                 float percente = (float) (width / 100);
                 float scale = (float) (viewWidth / percente);
                 width *= (scale / 100);
                 height *= (scale / 100);
-            }
+
 
             sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
         }
@@ -509,6 +529,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         @Override
         protected Bitmap doInBackground(String... params) {
+
             Bitmap bitmap = null;
             try{
                 URL url = new URL(params[0]);
@@ -520,10 +541,34 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                 bitmap = BitmapFactory.decodeStream(is);
 
+                float width = bitmap.getWidth();
+                float height = bitmap.getHeight();
+
+                if(width<height) {
+                    int viewHeight = 300;
+
+                        float percente = (float) (height / 100);
+                        float scale = (float) (viewHeight / percente);
+                        width *= (scale / 100);
+                        height *= (scale / 100);
+
+                    bitmap = Bitmap.createScaledBitmap(bitmap, (int) width, (int) height, true);
+                }
+                else{
+                    int viewWidth = 300;
+
+                        float percente = (float) (width / 100);
+                        float scale = (float) (viewWidth / percente);
+                        width *= (scale / 100);
+                        height *= (scale / 100);
+
+                    bitmap = Bitmap.createScaledBitmap(bitmap, (int) width, (int) height, true);
+                }
 
             }catch(IOException e){
                 e.printStackTrace();
             }
+
             return bitmap;
         }
     }
@@ -537,7 +582,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             nameValuePairs.add(new BasicNameValuePair("photoid",String.valueOf(params[1])));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("  ");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/getcoor.php");
             String[] temp = new String[2];
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));

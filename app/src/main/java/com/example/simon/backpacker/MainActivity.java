@@ -169,13 +169,7 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        if ( task.getStatus() == AsyncTask.Status.RUNNING ) {
-            try {
-                Thread.currentThread().sleep(300);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+
 
         if(result[0].equals("-1")) {
             userId = -1;

@@ -9,6 +9,7 @@ import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -55,12 +56,12 @@ public class ImageGridAdapter extends BaseAdapter {
             float width = bitmap.getWidth();
             float height = bitmap.getHeight();
 
-            if (height > viewHeight) {
+
                 float percente = (float) (height / 100);
                 float scale = (float) (viewHeight / percente);
                 width *= (scale / 100);
                 height *= (scale / 100);
-            }
+
 
             Bitmap sizingBmp = Bitmap.createScaledBitmap(bitmap, (int) width, (int) height, true);
 
@@ -75,7 +76,7 @@ public class ImageGridAdapter extends BaseAdapter {
                 public void onClick(View v) {
                     Intent intent = new Intent(context,ShowPicActivity.class);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.putExtra("photoid",position);
+                    intent.putExtra("photoid",position+1);
                     intent.putExtra("userid",userid);
                     context.startActivity(intent);
                 }
