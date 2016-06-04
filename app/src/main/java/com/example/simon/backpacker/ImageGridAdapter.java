@@ -18,10 +18,12 @@ import java.util.ArrayList;
 public class ImageGridAdapter extends BaseAdapter {
     private Context context = null;
     private ArrayList<MapsActivity.PicInfo> picinfos = null;
+    private int userid;
 
-    public ImageGridAdapter(Context _context, ArrayList<MapsActivity.PicInfo> _picinfos){
+    public ImageGridAdapter(Context _context, ArrayList<MapsActivity.PicInfo> _picinfos,int _userid){
         this.context = _context;
         this.picinfos = _picinfos;
+        this.userid = _userid;
     }
 
     @Override
@@ -73,7 +75,8 @@ public class ImageGridAdapter extends BaseAdapter {
                 public void onClick(View v) {
                     Intent intent = new Intent(context,ShowPicActivity.class);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    intent.putExtra("id",position);
+                    intent.putExtra("photoid",position);
+                    intent.putExtra("userid",userid);
                     context.startActivity(intent);
                 }
             };

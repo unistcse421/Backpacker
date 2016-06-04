@@ -52,6 +52,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -136,7 +138,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 @Override
                 public boolean onMarkerClick(Marker marker) {
                     GridView gv = (GridView)findViewById(R.id.gridView);
-                    ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
+                    ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList,userId);
 
                     gv.setAdapter(imagegridadapter);
 
@@ -149,22 +151,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void getPhoto(){
-        picList = new ArrayList<PicInfo>();
-        Bitmap testbit = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-        double la = -34, lo = 151;
-        PicInfo test = new PicInfo(testbit,la,lo);
-        picList.add(test);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = 8;
-        Bitmap t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test1,options);
-        double la1 = -34.1, lo1=151.1;
-        PicInfo t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
-        t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test2,options);
-        la1 = -34.11;
-        lo1=151.11;
-        t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
+        for(int i=0; i<photoTotalNum; i++){
+            //make url
+            String url = "http://uni07.unist.ac.kr/~cs20111412/imgs/" + String.valueOf(userId) + "_" + String.valueOf(i) + ".jpg";
+
+            Bitmap photo = null;
+            String[] gps = null;
+            try{
+                photo = new getPhoto().execute(url).get();
+                gps = new getGps().execute(userId,i).get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+
+            PicInfo picInfo = new PicInfo(photo,Double.parseDouble(gps[0]),Double.parseDouble(gps[1]));
+            picList.add(picInfo);
+        }
+
     }
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -267,7 +272,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public boolean onMarkerClick(Marker marker) {
                 GridView gv = (GridView)findViewById(R.id.gridView);
-                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
+                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList,userId);
 
                 gv.setAdapter(imagegridadapter);
 
@@ -498,6 +503,64 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
         return bitmap;
+    }
+
+    private class getPhoto extends AsyncTask<String,Void,Bitmap>{
+
+        @Override
+        protected Bitmap doInBackground(String... params) {
+            Bitmap bitmap = null;
+            try{
+                URL url = new URL(params[0]);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                conn.setDoInput(true);
+                conn.connect();
+
+                InputStream is = conn.getInputStream();
+
+                bitmap = BitmapFactory.decodeStream(is);
+
+
+            }catch(IOException e){
+                e.printStackTrace();
+            }
+            return bitmap;
+        }
+    }
+
+    private class getGps extends AsyncTask<Integer,Void,String[]>{
+
+        @Override
+        protected String[] doInBackground(Integer... params) {
+            ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("userid",String.valueOf(params[0])));
+            nameValuePairs.add(new BasicNameValuePair("photoid",String.valueOf(params[1])));
+
+            HttpClient httpClient = new DefaultHttpClient();
+            HttpPost httpPost = new HttpPost("  ");
+            String[] temp = new String[2];
+            try {
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
+                HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+
+                for(int i=0;i<2;i++)
+                    temp[i] = reader.readLine();
+
+                stream.close();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return temp;
+        }
     }
 
 }
