@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 
 import java.util.ArrayList;
 
@@ -46,10 +47,26 @@ public class ImageGridAdapter extends BaseAdapter {
             imageView = (ImageView)convertView;
         else{
             Bitmap bitmap = picinfos.get(position).getBitmap();
-            bitmap = Bitmap.createScaledBitmap(bitmap,320,240,false);
+            //bitmap = Bitmap.createScaledBitmap(bitmap,320,240,false);
+
+            int viewHeight = 240;
+            float width = bitmap.getWidth();
+            float height = bitmap.getHeight();
+
+            if (height > viewHeight) {
+                float percente = (float) (height / 100);
+                float scale = (float) (viewHeight / percente);
+                width *= (scale / 100);
+                height *= (scale / 100);
+            }
+
+            Bitmap sizingBmp = Bitmap.createScaledBitmap(bitmap, (int) width, (int) height, true);
 
             imageView = new ImageView(context);
-            imageView.setImageBitmap(bitmap);
+            imageView.setMaxHeight(240);
+            imageView.setMaxWidth(320);
+            imageView.setAdjustViewBounds(true);
+            imageView.setImageBitmap(sizingBmp);
 
             View.OnClickListener imageViewClickListener = new View.OnClickListener() {
                 @Override

@@ -8,8 +8,9 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 
-public class ShowPicActivity extends AppCompatActivity {
+import java.util.ArrayList;
 
+public class ShowPicActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -17,21 +18,8 @@ public class ShowPicActivity extends AppCompatActivity {
 
         int photoNum = getIntent().getExtras().getInt("id");
 
-        Bitmap photo;
-        //get photo from url
-        switch (photoNum){
-            case 0:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-                break;
-            case 1:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.test1);
-                break;
-            case 2:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.test2);
-                break;
-            default:
-                photo = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-        }
+
+        Bitmap photo=null;
 
 
         ImageView imageView = (ImageView)findViewById(R.id.showPic);
