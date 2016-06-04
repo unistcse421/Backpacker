@@ -1,41 +1,33 @@
 <?php
+              $e_mail = $_REQUEST['email'];
+              $password = $_REQUEST['pw'];
 
-//  session_strat();
+              $connection = mysqli_connect('localhost','cs20111412','20111412','Backpacker');
 
-//  echo "session started<br />\n";
+              $query = "SELECT user_num FROM user_info WHERE e_mail = '".$e_mail."' and password = password('".$password."')";
 
-#  if($_SESSION['auth_user'] == 1){
-#	echo "already login";
-#  }
-#  else{
 
-	  if(isset($_POST['email']) && isset($_POST['pw'])){
+              $result = mysqli_query($connection, $query);
 
-	      $email = $_POST['email'];
-	      $pw = $_POST['pw'];
+              $data_row = mysqli_fetch_array($result);
 
-	      $connection = mysqli_connect('localhost','root','111111','test');
+		if($data_row['user_num'])
+                	echo $data_row['user_num'];
+		else{
+			echo -1;
+			echo "\n";
+			echo 0;
+			return;
+		}
 
-	      $query = "SELECT * FROM user_info WHERE e_mail = '".$email."' and pw = '".$pw."'";
+                $query = "select count(photo_num) from photo_info where user_num = ".$data_row['user_num'];
+                $result = mysqli_query($connection, $query);
 
-	      $result = mysqli_query($connection, $query);
-
-	      $data_row = mysqli_fetch_array($result);
-
-	      if($email == $data_row['e_mail'] && $pw == $data_row['pw']){
-#		$_SESSION['email'] = $data_row['email'];
-#		$_SESSION['pw'] = $data_row['pw'];
-	        echo $data_row['User_num'];
-	      }
- 	     else{
-	       echo -1;
-	      }
+                $data_row = mysqli_fetch_array($result);
+                echo "\n";
+                echo $data_row[0];
 
       mysqli_close($connection);
-  }
-  else{
-	echo "cannot find email and pw<br />\n";
-  }
-#}
-
 ?>
+
+
