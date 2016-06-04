@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/register_background"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#EA8E59"
+    >
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Join"
+        android:textSize="40dp"
+        android:layout_gravity="center_horizontal"
+        android:paddingTop="75dp"
+        android:id="@+id/textView"
+        android:textColor="#ffffff"
+        android:textStyle="bold"
+        />
+
+    <GridLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="50dp"
+        android:columnCount="2">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Email"
+            android:textSize="20dp"
+            android:textColor="#ffffff"
+            />
+
+        <EditText
+            android:id="@+id/email"
+            android:layout_height="match_parent"
+            android:layout_width="180dp"
+            android:layout_marginLeft="15dp"
+            android:maxLength="20"
+            android:singleLine="true"
+            android:textColor="#000000"
+            />
+
+        <TextView
+            android:id="@+id/email_validation"
+            android:layout_height="wrap_content"
+            android:layout_width="180dp"
+            android:layout_columnSpan="2"
+            android:layout_gravity="right"
+            android:textSize="14dp"
+            android:textColor="#ffffff"
+            />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:text="PW"
+            android:textSize="20dp"
+            android:layout_marginTop="5dp"
+            android:textColor="#ffffff"
+            />
+
+        <EditText
+            android:id="@+id/pw"
+            android:layout_height="match_parent"
+            android:layout_width="180dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginTop="5dp"
+            android:maxLength="20"
+            android:inputType="textPassword"
+            android:singleLine="true"
+            />
+
+        <TextView
+            android:id="@+id/pw_validation"
+            android:layout_height="wrap_content"
+            android:layout_width="180dp"
+            android:layout_columnSpan="2"
+            android:layout_gravity="right"
+            android:textSize="14dp"
+            android:textColor="#ffffff"
+            />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="  PW\ncheck"
+            android:textSize="20dp"
+            android:layout_marginTop="5dp"
+            android:textColor="#ffffff"
+            />
+
+        <EditText
+            android:id="@+id/pw_check"
+            android:layout_height="match_parent"
+            android:layout_width="180dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginTop="5dp"
+            android:layout_gravity="bottom"
+            android:maxLength="20"
+            android:inputType="textPassword"
+            android:singleLine="true"
+            />
+
+        <TextView
+            android:id="@+id/pwcheck_validation"
+            android:layout_height="wrap_content"
+            android:layout_width="180dp"
+            android:layout_columnSpan="2"
+            android:layout_gravity="right"
+            android:textSize="14dp"
+            android:textColor="#ffffff"
+            />
+    </GridLayout>
+
+    <Button
+        android:id="@+id/register_join"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="75dp"
+        android:layout_marginLeft="250dp"
+        android:text="Join"
+        android:textColor="#ffffff"
+        android:background="@drawable/button_transparent"
+        />
+    
+</LinearLayout>
