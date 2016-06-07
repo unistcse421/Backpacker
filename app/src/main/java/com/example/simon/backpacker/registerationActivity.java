@@ -152,14 +152,6 @@ public class registerationActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        if ( task.getStatus() == AsyncTask.Status.RUNNING ) {
-            try {
-                Thread.currentThread().sleep(300);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
         if(result.equals("0"))
             return false;
         else
@@ -181,7 +173,7 @@ public class registerationActivity extends AppCompatActivity {
             nameValuePairs.add(new BasicNameValuePair("pw",params[1]));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join.php");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join_se.php");
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
                 HttpResponse response = httpClient.execute(httpPost);
@@ -205,7 +197,7 @@ public class registerationActivity extends AppCompatActivity {
             nameValuePairs.add(new BasicNameValuePair("email",params[0]));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join.php");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/join_se.php");
             String temp = null;
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));

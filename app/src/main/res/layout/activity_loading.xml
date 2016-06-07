@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:id="@+id/loading"
         android:layout_gravity="center_horizontal"
-        android:src="@mipmap/logo2"
+        android:src="@mipmap/load"
         android:layout_marginTop="100dp"
         />
 

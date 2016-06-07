@@ -5,16 +5,20 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Patterns;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
 
     private int userId = -1;        //-1 meaning that user not exist in DB
     private int photoNum = 0;
+    private PopupWindow popup;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,14 +174,6 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        if ( task.getStatus() == AsyncTask.Status.RUNNING ) {
-            try {
-                Thread.currentThread().sleep(300);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
         if(result[0].equals("-1")) {
             userId = -1;
             return;
@@ -195,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
             nameValuePairs.add(new BasicNameValuePair("pw",params[1]));
 
             HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/login.php");
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/login_se.php");
             String[] temp = new String[4];
             try {
                 httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
@@ -217,6 +214,21 @@ public class MainActivity extends AppCompatActivity {
                 e.printStackTrace();
             }
             return temp;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            View popupView = getLayoutInflater().inflate(R.layout.popup_login,null);
+            popup = new PopupWindow(popupView, ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT);
+
+            popup.showAtLocation(popupView, Gravity.NO_GRAVITY,0,0);
+        }
+
+        @Override
+        protected void onPostExecute(String[] strings) {
+            super.onPostExecute(strings);
+            popup.dismiss();
         }
     }
 

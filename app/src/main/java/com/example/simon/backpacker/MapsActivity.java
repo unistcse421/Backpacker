@@ -1,11 +1,19 @@
 package com.example.simon.backpacker;
 
+import android.Manifest;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -15,16 +23,28 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.annotation.DrawableRes;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Base64;
+import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.GridView;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import com.android.internal.http.multipart.MultipartEntity;
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -33,7 +53,10 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.internal.zzf;
+import com.google.android.gms.vision.CameraSource;
 
+import org.apache.commons.codec.language.DoubleMetaphone;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -52,9 +75,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -64,14 +91,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int userId;
     private int photoTotalNum;
     private Uri imageUri;
+    private Marker[] marker;
+    private ArrayList<MyMarker> myMarkers;
+
+    /**
+     * ATTENTION: This was auto-generated to implement the App Indexing API.
+     * See https://g.co/AppIndexing/AndroidStudio for more information.
+     */
+    private GoogleApiClient client;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        userId = getIntent().getIntExtra("USERID",-1);
-        photoTotalNum = getIntent().getIntExtra("PHOTONUM",0);
+        myMarkers = new ArrayList<MyMarker>();
+        picList = new ArrayList<PicInfo>();
+
+        userId = getIntent().getIntExtra("USERID", -1);
+        photoTotalNum = getIntent().getIntExtra("PHOTONUM", 0);
 
         ImageButton camera = (ImageButton) findViewById(R.id.camera);
         camera.setOnClickListener(new ImageButton.OnClickListener() {
@@ -81,13 +119,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        //TO-DO : get pic from server and save at picList
-        getPhoto();
-
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
     }
 
 
@@ -108,63 +146,124 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //LatLng sydney = new LatLng(-34, 151);
         //mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
         Gps gps = new Gps(this);
-        LatLng cur = new LatLng(gps.getLatitude(),gps.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(cur).title("current"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(cur));
-
+        LatLng cur = new LatLng(gps.getLatitude(), gps.getLongitude());
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(cur, 16));
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
 
         //TO-DO : marker pic(imagebutton) by gps info from picList
+        getPhoto();
         setMarker();
+
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            @Override
+            public boolean onMarkerClick(Marker marker) {
+                GridView gv = (GridView) findViewById(R.id.gridView);
+                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(), picList, userId);
+
+                gv.setAdapter(imagegridadapter);
+
+                gv.setVisibility(View.VISIBLE);
+
+                return false;
+            }
+        });
 
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                GridView gv = (GridView)findViewById(R.id.gridView);
+                GridView gv = (GridView) findViewById(R.id.gridView);
                 gv.setVisibility(View.GONE);
             }
         });
     }
 
-    private void setMarker(){
-        for(int i=0; i<picList.size(); i++){
+    private void setMarker() {
+        marker = new Marker[10000];
+        for (int i = 0; i < picList.size(); i++) {
             Bitmap tempBit = picList.get(i).getBitmap();
             double tempLatitude = picList.get(i).getLatitude();
             double tempLongtitude = picList.get(i).getLongtitude();
 
-            mMap.addMarker(new MarkerOptions().position(new LatLng(tempLatitude,tempLongtitude)).icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
-            mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-                @Override
-                public boolean onMarkerClick(Marker marker) {
-                    GridView gv = (GridView)findViewById(R.id.gridView);
-                    ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
-
-                    gv.setAdapter(imagegridadapter);
-
-                    gv.setVisibility(View.VISIBLE);
-
-                    return false;
+            int index = isSetMaker(tempLatitude, tempLongtitude, i);
+            if (index != -1) {
+                MyMarker re;
+                for(int j=myMarkers.size()-1;j>=0;j--){
+                    re = myMarkers.get(j);
+                    if(re.getIndex() == index)
+                        re.getMarker().remove();
                 }
-            });
+
+                Marker temp = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(tempBit))));
+
+                MyMarker temp2 = new MyMarker(temp,i);
+                myMarkers.add(temp2);
+                /*
+                marker[index].remove();
+                marker[i] = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(tempBit))));
+                        */
+            } else {
+                Marker temp = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+
+                MyMarker temp2 = new MyMarker(temp,i);
+                myMarkers.add(temp2);
+                /*
+                marker[i] = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+                        */
+            }
         }
     }
 
-    private void getPhoto(){
-        picList = new ArrayList<PicInfo>();
-        Bitmap testbit = BitmapFactory.decodeResource(getResources(),R.mipmap.ic_launcher);
-        double la = -34, lo = 151;
-        PicInfo test = new PicInfo(testbit,la,lo);
-        picList.add(test);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = 8;
-        Bitmap t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test1,options);
-        double la1 = -34.1, lo1=151.1;
-        PicInfo t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
-        t11 = BitmapFactory.decodeResource(getResources(),R.mipmap.test2,options);
-        la1 = -34.11;
-        lo1=151.11;
-        t1 = new PicInfo(t11,la1,lo1);
-        picList.add(t1);
+    private void getPhoto() {
+        try {
+            new getGps().execute(userId).get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        for (int i = 0; i < photoTotalNum; i++) {
+            //make url
+            String url = "http://uni07.unist.ac.kr/~cs20111412/imgs/" + String.valueOf(userId) + "_" + String.valueOf(i + 1) + ".jpg";
+
+            Bitmap photo = null;
+            String[] gps = null;
+
+            try {
+                getPhoto task = new getPhoto();
+                photo = task.execute(url).get();
+
+                //getGps task2 = new getGps();
+                //gps = task2.execute(userId,i+1).get();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+
+            //PicInfo picInfo = new PicInfo(photo,Double.parseDouble(gps[0]),Double.parseDouble(gps[1]));
+            //picList.add(picInfo);
+            picList.get(i).setBitmap(photo);
+        }
+
     }
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -185,12 +284,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
         }
- */   }
+ */
+    }
 
     //get photo to bitmap file and upload
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Bitmap photo=null;
+        Bitmap photo = null;
         int degree;
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
 //            Bundle extras = data.getExtras();
@@ -200,74 +300,76 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Bitmap image = BitmapFactory.decodeFile(imagePath);
 
             degree = GetExifOrientation(imagePath);
-            photo = GetRotatedBitmap(image,degree);
-
+            photo = GetRotatedBitmap(image, degree);
         } else
             return;
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        photo.compress(Bitmap.CompressFormat.JPEG, 70, stream);
+        photo.compress(Bitmap.CompressFormat.JPEG, 50, stream);
 
         byte[] array = stream.toByteArray();
         encoded_string = Base64.encodeToString(array, 0);
 
         Gps gps = new Gps(MapsActivity.this);
-
         //server connection
         String te = null;
         try {
-            te = new connection().execute(String.valueOf(gps.getLatitude()),String.valueOf(gps.getLongitude())).get();
+            te = new connection().execute(String.valueOf(gps.getLatitude()), String.valueOf(gps.getLongitude())).get();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
-        Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
-        Toast.makeText(getApplicationContext(),te, Toast.LENGTH_SHORT).show();
+        //Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
+
         encoded_string = null;
 
+        Bitmap sizingBmp = Bitmap.createScaledBitmap(photo, (int) 150, (int) 150, true);
 
-        Bitmap sizingBmp=null;
-        if((degree == 0) || (degree ==180)) {
-            int viewHeight = 150;
-            float width = photo.getWidth();
-            float height = photo.getHeight();
-
-            if (height > viewHeight) {
-                float percente = (float) (height / 100);
-                float scale = (float) (viewHeight / percente);
-                width *= (scale / 100);
-                height *= (scale / 100);
+        int index = isSetMaker(gps.getLatitude(), gps.getLongitude(), picList.size());
+        if (index != -1) {
+            MyMarker re;
+            for(int j=myMarkers.size()-1;j>=0;j--){
+                re = myMarkers.get(j);
+                if(re.getIndex() == index)
+                    re.getMarker().remove();
             }
 
-            sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
+            Marker temp = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(sizingBmp))));
+
+            MyMarker temp2 = new MyMarker(temp,picList.size());
+            myMarkers.add(temp2);
+/*
+            marker[index].remove();
+            marker[picList.size()] = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(sizingBmp))));
+*/
+        } else {
+            Marker temp = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
+
+            MyMarker temp2 = new MyMarker(temp,picList.size());
+            myMarkers.add(temp2);
+            /*
+            marker[picList.size()] = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
+                    */
         }
-        else{
-            int viewWidth = 150;
-            float width = photo.getWidth();
-            float height = photo.getHeight();
 
-            if (width > viewWidth) {
-                float percente = (float) (width / 100);
-                float scale = (float) (viewWidth / percente);
-                width *= (scale / 100);
-                height *= (scale / 100);
-            }
-
-            sizingBmp = Bitmap.createScaledBitmap(photo, (int) width, (int) height, true);
-        }
-        mMap.addMarker(new MarkerOptions()
-                .position(new LatLng(gps.getLatitude(),gps.getLongitude()))
-                .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
-
-        PicInfo t1 = new PicInfo(sizingBmp,gps.getLatitude(),gps.getLongitude());
+        PicInfo t1 = new PicInfo(sizingBmp, gps.getLatitude(), gps.getLongitude());
         picList.add(t1);
 
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
             public boolean onMarkerClick(Marker marker) {
-                GridView gv = (GridView)findViewById(R.id.gridView);
-                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(),picList);
+                GridView gv = (GridView) findViewById(R.id.gridView);
+
+                ImageGridAdapter imagegridadapter = new ImageGridAdapter(getApplicationContext(), picList, userId);
 
                 gv.setAdapter(imagegridadapter);
 
@@ -276,8 +378,46 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 return false;
             }
         });
+    }
 
+    @Override
+    public void onStart() {
+        super.onStart();
 
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        client.connect();
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Maps Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.simon.backpacker/http/host/path")
+        );
+        AppIndex.AppIndexApi.start(client, viewAction);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // ATTENTION: This was auto-generated to implement the App Indexing API.
+        // See https://g.co/AppIndexing/AndroidStudio for more information.
+        Action viewAction = Action.newAction(
+                Action.TYPE_VIEW, // TODO: choose an action type.
+                "Maps Page", // TODO: Define a title for the content shown.
+                // TODO: If you have web page content that matches this app activity's content,
+                // make sure this auto-generated web page URL is correct.
+                // Otherwise, set the URL to null.
+                Uri.parse("http://host/path"),
+                // TODO: Make sure this auto-generated app URL is correct.
+                Uri.parse("android-app://com.example.simon.backpacker/http/host/path")
+        );
+        AppIndex.AppIndexApi.end(client, viewAction);
+        client.disconnect();
     }
 
     private class connection extends AsyncTask<String, Integer, String> {
@@ -291,7 +431,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             nameValuePairs.add(new BasicNameValuePair("encoded_string", encoded_string));
             nameValuePairs.add(new BasicNameValuePair("image_name", name));
             nameValuePairs.add(new BasicNameValuePair("latitude", params[0]));
-            nameValuePairs.add(new BasicNameValuePair("longitude",params[1]));
+            nameValuePairs.add(new BasicNameValuePair("longitude", params[1]));
             nameValuePairs.add(new BasicNameValuePair("user_num", Integer.toString(userId)));
 
             HttpClient httpClient = new DefaultHttpClient();
@@ -302,7 +442,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 HttpEntity entityResponse = response.getEntity();
                 InputStream stream = entityResponse.getContent();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
-
 
                 temp = reader.readLine();
 
@@ -315,8 +454,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
-
             return temp;
         }
     }
@@ -332,13 +469,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Location location;
 
         protected Gps(Context context) {
-            if ( Build.VERSION.SDK_INT >= 23 &&
-                    ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION ) != PackageManager.PERMISSION_GRANTED &&
-                    ContextCompat.checkSelfPermission( getApplicationContext(), android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return  ;
+            if (Build.VERSION.SDK_INT >= 23 &&
+                    ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return;
             }
 
-            locationManager = (LocationManager)context.getSystemService(LOCATION_SERVICE);
+            locationManager = (LocationManager) context.getSystemService(LOCATION_SERVICE);
 
             isGPSEnabled = locationManager
                     .isProviderEnabled(LocationManager.GPS_PROVIDER);
@@ -386,12 +523,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         }
 
-        protected double getLatitude(){
+        protected double getLatitude() {
             return latitude;
         }
 
-        protected double getLongitude(){
-            return  longitude;
+        protected double getLongitude() {
+            return longitude;
         }
 
         @Override
@@ -420,46 +557,58 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         private double latitude;
         private double longitude;
 
-        PicInfo(Bitmap _bitmap, double _latitude, double _longtitude){
+        PicInfo(Bitmap _bitmap, double _latitude, double _longtitude) {
             bitmap = _bitmap;
             latitude = _latitude;
             longitude = _longtitude;
         }
 
-        Bitmap getBitmap(){
+        PicInfo(double _latitude, double _longtitude) {
+            latitude = _latitude;
+            longitude = _longtitude;
+        }
+
+        Bitmap getBitmap() {
             return bitmap;
         }
 
-        double getLatitude(){
+        void setBitmap(Bitmap _bitmap_) {
+            bitmap = _bitmap_;
+        }
+
+        double getLatitude() {
             return latitude;
         }
 
-        double getLongtitude() { return longitude; }
+        void setLatitude(double _latitude) {
+            latitude = _latitude;
+        }
+
+        double getLongtitude() {
+            return longitude;
+        }
+
+        void setLongitude(double _longitutde) {
+            longitude = _longitutde;
+        }
     }
 
-    public synchronized static int GetExifOrientation(String filepath)
-    {
+    public synchronized static int GetExifOrientation(String filepath) {
         int degree = 0;
         ExifInterface exif = null;
 
-        try
-        {
+        try {
             exif = new ExifInterface(filepath);
-        }
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        if (exif != null)
-        {
+        if (exif != null) {
             int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, -1);
 
-            if (orientation != -1)
-            {
+            if (orientation != -1) {
                 // We only recognize a subset of orientation tag values.
-                switch(orientation)
-                {
+                switch (orientation) {
                     case ExifInterface.ORIENTATION_ROTATE_90:
                         degree = 90;
                         break;
@@ -477,27 +626,175 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return degree;
     }
 
-    public synchronized static Bitmap GetRotatedBitmap(Bitmap bitmap, int degrees)
-    {
-        if ( degrees != 0 && bitmap != null )
-        {
+    public synchronized static Bitmap GetRotatedBitmap(Bitmap bitmap, int degrees) {
+        if (degrees != 0 && bitmap != null) {
             Matrix m = new Matrix();
-            m.setRotate(degrees, (float) bitmap.getWidth() / 2, (float) bitmap.getHeight() / 2 );
-            try
-            {
+            m.setRotate(degrees, (float) bitmap.getWidth() / 2, (float) bitmap.getHeight() / 2);
+            try {
                 Bitmap b2 = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
-                if (bitmap != b2)
-                {
+                if (bitmap != b2) {
                     bitmap.recycle();
                     bitmap = b2;
                 }
-            }
-            catch (OutOfMemoryError ex)
-            {
+            } catch (OutOfMemoryError ex) {
                 // We have no memory to rotate. Return the original bitmap.
             }
         }
         return bitmap;
     }
 
+    private class getPhoto extends AsyncTask<String, Void, Bitmap> {
+
+        ProgressDialog asyncDialog = new ProgressDialog(
+                MapsActivity.this);
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            asyncDialog.dismiss();
+            super.onPostExecute(bitmap);
+        }
+
+        @Override
+        protected void onPreExecute() {
+            asyncDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            asyncDialog.setMessage("로딩중입니다...");
+            asyncDialog.show();
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Bitmap doInBackground(String... params) {
+
+            Bitmap bitmap = null;
+            try {
+                URL url = new URL(params[0]);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setDoInput(true);
+                conn.connect();
+
+                InputStream is = conn.getInputStream();
+
+                bitmap = BitmapFactory.decodeStream(is);
+
+                bitmap = Bitmap.createScaledBitmap(bitmap, (int) 150, (int) 150, true);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return bitmap;
+        }
+    }
+
+    private class getGps extends AsyncTask<Integer, Void, String[]> {
+
+        @Override
+        protected String[] doInBackground(Integer... params) {
+            ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("userid", String.valueOf(params[0])));
+            //nameValuePairs.add(new BasicNameValuePair("photoid",String.valueOf(params[1])));
+
+            HttpClient httpClient = new DefaultHttpClient();
+            HttpPost httpPost = new HttpPost("http://uni07.unist.ac.kr/~cs20111412/getcoor.php");
+            //String[] temp = new String[2];
+            try {
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, HTTP.UTF_8));
+                HttpResponse response = httpClient.execute(httpPost);
+                HttpEntity entityResponse = response.getEntity();
+                InputStream stream = entityResponse.getContent();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream, HTTP.UTF_8));
+
+                for (int i = 0; i < photoTotalNum; i++) {
+                    double templa = Double.parseDouble(reader.readLine());
+                    double templo = Double.parseDouble(reader.readLine());
+                    PicInfo picInfo = new PicInfo(templa, templo);
+                    picList.add(picInfo);
+                }
+
+                stream.close();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            } catch (ClientProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            // return temp;
+            return null;
+        }
+    }
+
+    int isSetMaker(double latitude, double longitude, int index) {
+        for (int i = index - 1; i >= 0; i--) {
+            if (picList.get(i).getLatitude() + 0.001 > latitude && picList.get(i).getLatitude() - 0.001 < latitude &&
+                    picList.get(i).getLongtitude() + 0.001 > longitude && picList.get(i).getLongtitude() - 0.001 < longitude) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private Bitmap getMarkerBitmapFromView(Bitmap _bitmap) {
+
+        View customMarkerView = ((LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE)).inflate(R.layout.custom_marker_multi, null);
+        ImageView markerImageView = (ImageView) customMarkerView.findViewById(R.id.multi_marker);
+        markerImageView.setImageBitmap(_bitmap);
+        customMarkerView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        customMarkerView.layout(0, 0, customMarkerView.getMeasuredWidth(), customMarkerView.getMeasuredHeight());
+        customMarkerView.buildDrawingCache();
+        Bitmap returnedBitmap = Bitmap.createBitmap(customMarkerView.getMeasuredWidth(), customMarkerView.getMeasuredHeight(),
+                Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(returnedBitmap);
+        canvas.drawColor(Color.WHITE, PorterDuff.Mode.SRC_IN);
+        Drawable drawable = customMarkerView.getBackground();
+        if (drawable != null)
+            drawable.draw(canvas);
+        customMarkerView.draw(canvas);
+        return returnedBitmap;
+    }
+
+    private class MyMarker{
+        private Marker marker;
+        private int index;
+
+        MyMarker(Marker _marker, int _index){
+            marker = _marker;
+            index = _index;
+        }
+
+        Marker getMarker(){
+            return marker;
+        }
+
+        int getIndex(){
+            return index;
+        }
+
+        void setMarker(Marker _marker){
+            marker = _marker;
+        }
+
+        void setIndex(int _index){
+            index = _index;
+        }
+    }
+
+    public boolean onKeyDown(int keyCode, KeyEvent event){
+        switch (keyCode){
+            case KeyEvent.KEYCODE_BACK:
+                new AlertDialog.Builder(this)
+                        .setTitle("LogOut")
+                        .setMessage("로그아웃을 하시겠습니까?")
+                        .setPositiveButton("아니요",null)
+                        .setNegativeButton("예", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                onBackPressed();
+                            }
+                        })
+                        .show();
+                return false;
+            default:
+                return false;
+        }
+    }
 }
