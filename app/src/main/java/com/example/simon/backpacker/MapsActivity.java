@@ -1,8 +1,10 @@
 package com.example.simon.backpacker;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -27,12 +29,16 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.util.Base64;
+import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import com.android.internal.http.multipart.MultipartEntity;
@@ -86,6 +92,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private int photoTotalNum;
     private Uri imageUri;
     private Marker[] marker;
+    private ArrayList<MyMarker> myMarkers;
+
     /**
      * ATTENTION: This was auto-generated to implement the App Indexing API.
      * See https://g.co/AppIndexing/AndroidStudio for more information.
@@ -97,6 +105,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        myMarkers = new ArrayList<MyMarker>();
         picList = new ArrayList<PicInfo>();
 
         userId = getIntent().getIntExtra("USERID", -1);
@@ -187,14 +196,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             int index = isSetMaker(tempLatitude, tempLongtitude, i);
             if (index != -1) {
+                MyMarker re;
+                for(int j=myMarkers.size()-1;j>=0;j--){
+                    re = myMarkers.get(j);
+                    if(re.getIndex() == index)
+                        re.getMarker().remove();
+                }
+
+                Marker temp = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(tempBit))));
+
+                MyMarker temp2 = new MyMarker(temp,i);
+                myMarkers.add(temp2);
+                /*
                 marker[index].remove();
                 marker[i] = mMap.addMarker(new MarkerOptions()
                         .position(new LatLng(tempLatitude, tempLongtitude))
                         .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(tempBit))));
+                        */
             } else {
+                Marker temp = mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(tempLatitude, tempLongtitude))
+                        .icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+
+                MyMarker temp2 = new MyMarker(temp,i);
+                myMarkers.add(temp2);
+                /*
                 marker[i] = mMap.addMarker(new MarkerOptions()
                         .position(new LatLng(tempLatitude, tempLongtitude))
                         .icon(BitmapDescriptorFactory.fromBitmap(tempBit)));
+                        */
             }
         }
     }
@@ -273,7 +305,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             return;
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        photo.compress(Bitmap.CompressFormat.JPEG, 70, stream);
+        photo.compress(Bitmap.CompressFormat.JPEG, 50, stream);
 
         byte[] array = stream.toByteArray();
         encoded_string = Base64.encodeToString(array, 0);
@@ -288,7 +320,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
-        Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
+        //Toast.makeText(getApplicationContext(), "전송을 성공하였습니다", Toast.LENGTH_SHORT).show();
 
         encoded_string = null;
 
@@ -296,14 +328,37 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         int index = isSetMaker(gps.getLatitude(), gps.getLongitude(), picList.size());
         if (index != -1) {
+            MyMarker re;
+            for(int j=myMarkers.size()-1;j>=0;j--){
+                re = myMarkers.get(j);
+                if(re.getIndex() == index)
+                    re.getMarker().remove();
+            }
+
+            Marker temp = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(sizingBmp))));
+
+            MyMarker temp2 = new MyMarker(temp,picList.size());
+            myMarkers.add(temp2);
+/*
             marker[index].remove();
             marker[picList.size()] = mMap.addMarker(new MarkerOptions()
                     .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
                     .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(sizingBmp))));
+*/
         } else {
+            Marker temp = mMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
+                    .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
+
+            MyMarker temp2 = new MyMarker(temp,picList.size());
+            myMarkers.add(temp2);
+            /*
             marker[picList.size()] = mMap.addMarker(new MarkerOptions()
                     .position(new LatLng(gps.getLatitude(), gps.getLongitude()))
                     .icon(BitmapDescriptorFactory.fromBitmap(sizingBmp)));
+                    */
         }
 
         PicInfo t1 = new PicInfo(sizingBmp, gps.getLatitude(), gps.getLongitude());
@@ -697,5 +752,49 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return returnedBitmap;
     }
 
+    private class MyMarker{
+        private Marker marker;
+        private int index;
 
+        MyMarker(Marker _marker, int _index){
+            marker = _marker;
+            index = _index;
+        }
+
+        Marker getMarker(){
+            return marker;
+        }
+
+        int getIndex(){
+            return index;
+        }
+
+        void setMarker(Marker _marker){
+            marker = _marker;
+        }
+
+        void setIndex(int _index){
+            index = _index;
+        }
+    }
+
+    public boolean onKeyDown(int keyCode, KeyEvent event){
+        switch (keyCode){
+            case KeyEvent.KEYCODE_BACK:
+                new AlertDialog.Builder(this)
+                        .setTitle("LogOut")
+                        .setMessage("로그아웃을 하시겠습니까?")
+                        .setPositiveButton("아니요",null)
+                        .setNegativeButton("예", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                onBackPressed();
+                            }
+                        })
+                        .show();
+                return false;
+            default:
+                return false;
+        }
+    }
 }
